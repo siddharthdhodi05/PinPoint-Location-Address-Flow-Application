@@ -1,22 +1,51 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+import { useDispatch } from 'react-redux';
+import { setAddresses } from '../Redux/addressSlice.js';
 
 const SaveAddress = () => {
   const [houseStreet, setHouseStreet] = useState('');
   const [city, setCity] = useState('');
   const [addressType, setAddressType] = useState('');
+  const [addressId, setAddressId] = useState(null);
+  const [error, setError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const dispatch = useDispatch();
+
+  // Handle address form submission
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const addressData = {
-      houseStreet,
-      city,
-      addressType,
-    };
-    console.log('Address Saved:', addressData);
-    // Reset form after submission (optional)
-    setHouseStreet('');
-    setCity('');
-    setAddressType('');
+
+    if (!houseStreet || !city || !addressType) {
+      setError('All fields are required!');
+      return;
+    }
+
+    const addressData = { houseStreet, city, addressType };
+
+    try {
+      const response = await axios.post('http://localhost:5003/api/v1/address/save', addressData);
+
+      if (response.data && response.data.length > 0) {
+        const savedAddress = response.data[0]; // Get the first address from the response
+        setAddressId(savedAddress._id);
+        setHouseStreet('');
+        setCity('');
+        setAddressType('');
+        setError(null);
+
+        // Fetch the updated list of addresses after saving a new one
+        const updatedAddressesResponse = await axios.get('http://localhost:5003/api/v1/address/list');
+        dispatch(setAddresses(updatedAddressesResponse.data)); // Update Redux store
+
+        console.log('Address Saved:', savedAddress);
+      } else {
+        setError('Failed to save address.');
+      }
+    } catch (error) {
+      console.error('Error saving address:', error.response ? error.response.data : error);
+      setError('Error saving address. Please try again.');
+    }
   };
 
   return (
@@ -83,7 +112,7 @@ const SaveAddress = () => {
                 onChange={(e) => setAddressType(e.target.value)}
                 className="form-radio text-blue-500"
               />
-              <span className="ml-2 text-gray-700">Family&Family</span>
+              <span className="ml-2 text-gray-700">Family</span>
             </label>
           </div>
         </div>
@@ -97,6 +126,18 @@ const SaveAddress = () => {
           </button>
         </div>
       </form>
+
+      {addressId && (
+        <div className="mt-4 text-green-500">
+          Address saved successfully! Address ID: {addressId}
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 text-red-500">
+          {error}
+        </div>
+      )}
     </div>
   );
 };
